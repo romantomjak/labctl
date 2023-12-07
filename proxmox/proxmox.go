@@ -40,10 +40,6 @@ type VirtualMachine struct {
 }
 
 func ListVMs(ctx context.Context) ([]VirtualMachine, error) {
-	return ListVMsWithTags(ctx)
-}
-
-func ListVMsWithTags(ctx context.Context, tags ...string) ([]VirtualMachine, error) {
 	cluster, err := client.Cluster(ctx)
 	if err != nil {
 		return nil, err
@@ -72,6 +68,84 @@ func ListVMsWithTags(ctx context.Context, tags ...string) ([]VirtualMachine, err
 			Tags:    r.Tags,
 			Uptime:  r.Uptime,
 		})
+	}
+
+	return vms, nil
+}
+
+func ListVMsWithNames(ctx context.Context, names ...string) ([]VirtualMachine, error) {
+	vms, err := ListVMs(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Return everything if no names were specified.
+	if len(names) == 0 {
+		return vms, nil
+	}
+
+	// Build a lookup map to avoid looping over name slice for each VM.
+	requestedNames := make(map[string]struct{}, len(names))
+	for _, name := range names {
+		requestedNames[name] = struct{}{}
+	}
+
+	vmsByName := make(map[string][]VirtualMachine, len(vms))
+	for _, vm := range vms {
+		_, ok := requestedNames[vm.Name]
+		if !ok {
+			continue // VM does not have the requested name
+		}
+		vmsByName[vm.Name] = append(vmsByName[vm.Name], vm)
+	}
+
+	sortedVMs := make([]VirtualMachine, 0, len(vms))
+	for _, name := range names {
+		sortedVMs = append(sortedVMs, vmsByName[name]...)
+	}
+
+	return sortedVMs, nil
+}
+
+func ListVMsWithIDs(ctx context.Context, ids ...string) ([]VirtualMachine, error) {
+	vms, err := ListVMs(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Return everything if no IDs were specified.
+	if len(ids) == 0 {
+		return vms, nil
+	}
+
+	// Build a lookup map to avoid looping over tag slice for each VM.
+	requestedIDs := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		requestedIDs[id] = struct{}{}
+	}
+
+	vmsByIDs := make(map[string][]VirtualMachine, len(vms))
+	for _, vm := range vms {
+		id := fmt.Sprintf("%d", vm.ID)
+		_, ok := requestedIDs[id]
+		if !ok {
+			continue // VM does not have the requested id
+		}
+		vmsByIDs[id] = append(vmsByIDs[id], vm)
+	}
+
+	sortedVMs := make([]VirtualMachine, 0, len(vms))
+	for _, id := range ids {
+		sortedVMs = append(sortedVMs, vmsByIDs[id]...)
+	}
+
+	return sortedVMs, nil
+}
+
+func ListVMsWithTags(ctx context.Context, tags ...string) ([]VirtualMachine, error) {
+	vms, err := ListVMs(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	// Return everything if no tags were specified.

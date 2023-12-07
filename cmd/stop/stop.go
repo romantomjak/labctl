@@ -13,22 +13,43 @@ import (
 	"github.com/romantomjak/labctl/proxmox"
 )
 
+var (
+	flagVMIDs bool
+	flagTags  bool
+)
+
 func Command() *cobra.Command {
-	return &cobra.Command{
-		Use:   "stop [tags]",
-		Short: "Stop VMs with matching tags",
-		Args:  cobra.MinimumNArgs(1),
+	cmd := &cobra.Command{
+		Use:   "stop [flags] [args]",
+		Short: "Stop VMs",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 
-			vms, err := proxmox.ListVMsWithTags(ctx, args...)
-			if err != nil {
-				return err
+			var (
+				vms []proxmox.VirtualMachine
+				err error
+			)
+			switch {
+			case flagVMIDs:
+				vms, err = proxmox.ListVMsWithIDs(ctx, args...)
+				if err != nil {
+					return err
+				}
+			case flagTags:
+				vms, err = proxmox.ListVMsWithTags(ctx, args...)
+				if err != nil {
+					return err
+				}
+			default:
+				vms, err = proxmox.ListVMsWithNames(ctx, args...)
+				if err != nil {
+					return err
+				}
 			}
 
 			if len(vms) == 0 {
-				fmt.Println("No VMs matched the specified tags 💔")
+				fmt.Println("No VMs matched the specified arguments 💔")
 				return nil
 			}
 
@@ -60,6 +81,11 @@ func Command() *cobra.Command {
 			return nil
 		},
 	}
+
+	cmd.Flags().BoolVar(&flagTags, "tags", false, "")
+	cmd.Flags().BoolVar(&flagVMIDs, "ids", false, "")
+
+	return cmd
 }
 
 func stopVM(ctx context.Context, cmd *cobra.Command) func(*proxmox.VirtualMachine) {
