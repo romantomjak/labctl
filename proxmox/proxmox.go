@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 
 	"github.com/luthermonson/go-proxmox"
@@ -27,19 +28,25 @@ var client = proxmox.NewClient(fmt.Sprintf("%s/api2/json", os.Getenv("PROXMOX_AD
 )
 
 type VirtualMachine struct {
-	ID      uint64
-	CPU     float64
-	Disk    uint64
-	Mem     uint64
-	Name    string
-	Node    string
-	Status  string
-	Storage string
-	Tags    string
-	Uptime  uint64
+	ID         uint64
+	CPU        float64
+	Disk       uint64
+	Mem        uint64
+	Name       string
+	Node       string
+	Status     string
+	Storage    string
+	Tags       string
+	Uptime     uint64
+	IsTemplate bool
 }
 
-func ListVMs(ctx context.Context) ([]VirtualMachine, error) {
+type ListOptions struct {
+	Filters  []Filter
+	SortFunc func(a VirtualMachine, b VirtualMachine) int
+}
+
+func ListVMs(ctx context.Context, opt *ListOptions) ([]VirtualMachine, error) {
 	cluster, err := client.Cluster(ctx)
 	if err != nil {
 		return nil, err
@@ -52,128 +59,43 @@ func ListVMs(ctx context.Context) ([]VirtualMachine, error) {
 
 	vms := make([]VirtualMachine, 0, len(rs))
 	for _, r := range rs {
-		if r.Template == 1 {
-			continue // ignore VM templates
+		vm := VirtualMachine{
+			ID:         r.VMID,
+			CPU:        r.CPU,
+			Disk:       r.Disk,
+			Mem:        r.Mem,
+			Name:       r.Name,
+			Node:       r.Node,
+			Status:     r.Status,
+			Storage:    r.Status,
+			Tags:       r.Tags,
+			Uptime:     r.Uptime,
+			IsTemplate: r.Template == 1,
 		}
 
-		vms = append(vms, VirtualMachine{
-			ID:      r.VMID,
-			CPU:     r.CPU,
-			Disk:    r.Disk,
-			Mem:     r.Mem,
-			Name:    r.Name,
-			Node:    r.Node,
-			Status:  r.Status,
-			Storage: r.Status,
-			Tags:    r.Tags,
-			Uptime:  r.Uptime,
-		})
+		if opt == nil {
+			vms = append(vms, vm)
+			continue
+		}
+
+		matchedAllFilters := true
+		for _, f := range opt.Filters {
+			if !f(vm) {
+				matchedAllFilters = false
+				break
+			}
+		}
+
+		if matchedAllFilters {
+			vms = append(vms, vm)
+		}
+	}
+
+	if opt != nil && opt.SortFunc != nil {
+		slices.SortFunc(vms, opt.SortFunc)
 	}
 
 	return vms, nil
-}
-
-func ListVMsWithNames(ctx context.Context, names ...string) ([]VirtualMachine, error) {
-	vms, err := ListVMs(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// Return everything if no names were specified.
-	if len(names) == 0 {
-		return vms, nil
-	}
-
-	// Build a lookup map to avoid looping over name slice for each VM.
-	requestedNames := make(map[string]struct{}, len(names))
-	for _, name := range names {
-		requestedNames[name] = struct{}{}
-	}
-
-	vmsByName := make(map[string][]VirtualMachine, len(vms))
-	for _, vm := range vms {
-		_, ok := requestedNames[vm.Name]
-		if !ok {
-			continue // VM does not have the requested name
-		}
-		vmsByName[vm.Name] = append(vmsByName[vm.Name], vm)
-	}
-
-	sortedVMs := make([]VirtualMachine, 0, len(vms))
-	for _, name := range names {
-		sortedVMs = append(sortedVMs, vmsByName[name]...)
-	}
-
-	return sortedVMs, nil
-}
-
-func ListVMsWithIDs(ctx context.Context, ids ...string) ([]VirtualMachine, error) {
-	vms, err := ListVMs(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// Return everything if no IDs were specified.
-	if len(ids) == 0 {
-		return vms, nil
-	}
-
-	// Build a lookup map to avoid looping over tag slice for each VM.
-	requestedIDs := make(map[string]struct{}, len(ids))
-	for _, id := range ids {
-		requestedIDs[id] = struct{}{}
-	}
-
-	vmsByIDs := make(map[string][]VirtualMachine, len(vms))
-	for _, vm := range vms {
-		id := fmt.Sprintf("%d", vm.ID)
-		_, ok := requestedIDs[id]
-		if !ok {
-			continue // VM does not have the requested id
-		}
-		vmsByIDs[id] = append(vmsByIDs[id], vm)
-	}
-
-	sortedVMs := make([]VirtualMachine, 0, len(vms))
-	for _, id := range ids {
-		sortedVMs = append(sortedVMs, vmsByIDs[id]...)
-	}
-
-	return sortedVMs, nil
-}
-
-func ListVMsWithTags(ctx context.Context, tags ...string) ([]VirtualMachine, error) {
-	vms, err := ListVMs(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// Return everything if no tags were specified.
-	if len(tags) == 0 {
-		return vms, nil
-	}
-
-	// Build a lookup map to avoid looping over tag slice for each VM.
-	requestedTags := make(map[string]struct{}, len(tags))
-	for _, tag := range tags {
-		requestedTags[tag] = struct{}{}
-	}
-
-	vmsByTags := make(map[string][]VirtualMachine, len(vms))
-	for _, vm := range vms {
-		_, ok := requestedTags[vm.Tags]
-		if !ok {
-			continue // VM does not have the requested tags
-		}
-		vmsByTags[vm.Tags] = append(vmsByTags[vm.Tags], vm)
-	}
-
-	sortedVMs := make([]VirtualMachine, 0, len(vms))
-	for _, tag := range tags {
-		sortedVMs = append(sortedVMs, vmsByTags[tag]...)
-	}
-
-	return sortedVMs, nil
 }
 
 func StartVM(ctx context.Context, vm VirtualMachine) error {

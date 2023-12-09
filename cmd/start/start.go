@@ -26,26 +26,27 @@ func Command() *cobra.Command {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 
-			var (
-				vms []proxmox.VirtualMachine
-				err error
-			)
+			opts := &proxmox.ListOptions{
+				Filters: []proxmox.Filter{
+					proxmox.FilterIsVM(),
+				},
+			}
+
 			switch {
 			case flagVMIDs:
-				vms, err = proxmox.ListVMsWithIDs(ctx, args...)
-				if err != nil {
-					return err
-				}
+				opts.Filters = append(opts.Filters, proxmox.FilterByIDs(args...))
+				opts.SortFunc = proxmox.SortByIDs(args...)
 			case flagTags:
-				vms, err = proxmox.ListVMsWithTags(ctx, args...)
-				if err != nil {
-					return err
-				}
+				opts.Filters = append(opts.Filters, proxmox.FilterByTags(args...))
+				opts.SortFunc = proxmox.SortByTags(args...)
 			default:
-				vms, err = proxmox.ListVMsWithNames(ctx, args...)
-				if err != nil {
-					return err
-				}
+				opts.Filters = append(opts.Filters, proxmox.FilterByNames(args...))
+				opts.SortFunc = proxmox.SortByNames(args...)
+			}
+
+			vms, err := proxmox.ListVMs(ctx, opts)
+			if err != nil {
+				return err
 			}
 
 			if len(vms) == 0 {

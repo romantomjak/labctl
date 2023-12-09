@@ -20,7 +20,11 @@ func Command() *cobra.Command {
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 
-			vms, err := proxmox.ListVMs(ctx)
+			vms, err := proxmox.ListVMs(ctx, &proxmox.ListOptions{
+				Filters: []proxmox.Filter{
+					proxmox.FilterIsVM(),
+				},
+			})
 			if err != nil {
 				return err
 			}
