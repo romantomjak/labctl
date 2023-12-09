@@ -29,6 +29,11 @@ func Command() *cobra.Command {
 				return err
 			}
 
+			if len(vms) == 0 {
+				fmt.Println("No VMs are running at the moment 🙅‍♀️")
+				return nil
+			}
+
 			t := table.New("ID", "NAME", "NODE", "STATUS", "UPTIME", "MEM", "CPU")
 			for _, vm := range vms {
 				t.AddRow(
