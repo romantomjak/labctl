@@ -41,7 +41,7 @@ func Command() *cobra.Command {
 					vm.Name,
 					vm.Node,
 					vm.Status,
-					time.Duration(vm.Uptime*uint64(time.Second)).String(),
+					humanize.RelTime(time.Now().Add(time.Duration(vm.Uptime*uint64(time.Second))), time.Now(), "", ""),
 					humanize.Bytes(vm.Mem),
 					humanize.Ftoa(vm.CPU),
 				)
