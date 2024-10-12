@@ -34,11 +34,12 @@ func Command() *cobra.Command {
 				return nil
 			}
 
-			t := table.New("ID", "NAME", "NODE", "STATUS", "UPTIME", "MEM", "CPU")
+			t := table.New("ID", "NAME", "TAGS", "NODE", "STATUS", "UPTIME", "MEM", "CPU")
 			for _, vm := range vms {
 				t.AddRow(
 					fmt.Sprintf("%d", vm.ID),
 					vm.Name,
+					vm.Tags,
 					vm.Node,
 					vm.Status,
 					humanize.RelTime(time.Now().Add(time.Duration(vm.Uptime*uint64(time.Second))), time.Now(), "", ""),
