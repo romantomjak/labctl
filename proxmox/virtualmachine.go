@@ -29,12 +29,7 @@ type ListOptions struct {
 }
 
 func ListVMs(ctx context.Context, opt *ListOptions) ([]VirtualMachine, error) {
-	cluster, err := client.Cluster(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	rs, err := cluster.Resources(ctx, "vm")
+	rs, err := cluster.Resources(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -81,6 +76,11 @@ func ListVMs(ctx context.Context, opt *ListOptions) ([]VirtualMachine, error) {
 }
 
 func StartVM(ctx context.Context, vm VirtualMachine) error {
+	client, err := cluster.Client(vm)
+	if err != nil {
+		return err
+	}
+
 	var upid proxmox.UPID
 	if err := client.Post(ctx, fmt.Sprintf("/nodes/%s/qemu/%d/status/start", vm.Node, vm.ID), nil, &upid); err != nil {
 		return err
@@ -105,22 +105,39 @@ func StartVM(ctx context.Context, vm VirtualMachine) error {
 }
 
 func IsRunning(ctx context.Context, vm VirtualMachine) (bool, error) {
+	client, err := cluster.Client(vm)
+	if err != nil {
+		return false, err
+	}
+
 	var pvm proxmox.VirtualMachine
 	if err := client.Get(ctx, fmt.Sprintf("/nodes/%s/qemu/%d/status/current", vm.Node, vm.ID), &pvm); err != nil {
 		return false, err
 	}
+
 	return pvm.Status == proxmox.StatusVirtualMachineRunning, nil
 }
 
 func IsStopped(ctx context.Context, vm VirtualMachine) (bool, error) {
+	client, err := cluster.Client(vm)
+	if err != nil {
+		return false, err
+	}
+
 	var pvm proxmox.VirtualMachine
 	if err := client.Get(ctx, fmt.Sprintf("/nodes/%s/qemu/%d/status/current", vm.Node, vm.ID), &pvm); err != nil {
 		return false, err
 	}
+
 	return pvm.Status == proxmox.StatusVirtualMachineStopped, nil
 }
 
 func StopVM(ctx context.Context, vm VirtualMachine) error {
+	client, err := cluster.Client(vm)
+	if err != nil {
+		return err
+	}
+
 	var upid proxmox.UPID
 	if err := client.Post(ctx, fmt.Sprintf("/nodes/%s/qemu/%d/status/stop", vm.Node, vm.ID), nil, &upid); err != nil {
 		return err
