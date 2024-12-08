@@ -7,11 +7,12 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
 	"sync"
 
 	"github.com/luthermonson/go-proxmox"
 	"golang.org/x/sync/errgroup"
+
+	"github.com/romantomjak/labctl/config"
 )
 
 var cluster = &multiClient{
@@ -27,8 +28,16 @@ type multiClient struct {
 }
 
 func (c *multiClient) Resources(ctx context.Context) (proxmox.ClusterResources, error) {
-	// Comma separated list of nodes and their credentials.
-	nodes := os.Getenv("PROXMOX_NODES")
+	var nodes []string
+
+	cfg, err := config.FromFile("~/.labctl.hcl")
+	if err != nil {
+		return nil, fmt.Errorf("load configuration: %w", err)
+	}
+
+	for _, node := range cfg.Proxmox.Nodes {
+		nodes = append(nodes, fmt.Sprintf("https://%s:%s@%s", node.Username, node.Password, node.Addr))
+	}
 
 	// If no nodes are given - check for existing proxmox API credentials.
 	if len(nodes) == 0 {
@@ -37,7 +46,7 @@ func (c *multiClient) Resources(ctx context.Context) (proxmox.ClusterResources, 
 		password := os.Getenv("PROXMOX_PASSWORD")
 
 		if addr != "" && user != "" {
-			nodes = fmt.Sprintf("https://%s:%s@%s", user, password, addr)
+			nodes = append(nodes, fmt.Sprintf("https://%s:%s@%s", user, password, addr))
 		}
 	}
 
@@ -52,7 +61,7 @@ func (c *multiClient) Resources(ctx context.Context) (proxmox.ClusterResources, 
 		resources proxmox.ClusterResources
 	)
 
-	for _, node := range strings.Split(nodes, ",") {
+	for _, node := range nodes {
 		u, err := url.Parse(node)
 		if err != nil {
 			return nil, fmt.Errorf("invalid proxmox addr: %w", err)
