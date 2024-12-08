@@ -34,7 +34,7 @@ type ProxmoxNode struct {
 	Name     string `hcl:"name,label"`
 	Username string `hcl:"username"`
 	Password string `hcl:"password"`
-	URL      string `hcl:"url"`
+	Addr     string `hcl:"addr"`
 }
 
 func FromFile(filename string) (*Config, error) {
