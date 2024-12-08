@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/hcl/v2/hclsimple"
 )
@@ -24,8 +25,9 @@ type KubernetesDashboard struct {
 }
 
 type Proxmox struct {
-	Timeout string        `hcl:"timeout"`
-	Nodes   []ProxmoxNode `hcl:"node,block"`
+	TimeoutRaw string `hcl:"timeout"`
+	Timeout    time.Duration
+	Nodes      []ProxmoxNode `hcl:"node,block"`
 }
 
 type ProxmoxNode struct {
@@ -48,5 +50,13 @@ func FromFile(filename string) (*Config, error) {
 	if err := hclsimple.DecodeFile(filename, nil, cfg); err != nil {
 		return nil, fmt.Errorf("decode file: %w", err)
 	}
+
+	timeout, err := time.ParseDuration(cfg.Proxmox.TimeoutRaw)
+	if err != nil {
+		return nil, fmt.Errorf("parse timeout: %w", err)
+	}
+
+	cfg.Proxmox.Timeout = timeout
+
 	return cfg, nil
 }

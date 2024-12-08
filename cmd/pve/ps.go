@@ -8,6 +8,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/spf13/cobra"
 
+	"github.com/romantomjak/labctl/config"
 	"github.com/romantomjak/labctl/proxmox"
 	"github.com/romantomjak/labctl/table"
 )
@@ -16,7 +17,12 @@ var ps = &cobra.Command{
 	Use:   "ps",
 	Short: "List VMs and their statuses",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		cfg, err := config.FromFile("~/.labctl.hcl")
+		if err != nil {
+			return fmt.Errorf("load configuration: %w", err)
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), cfg.Proxmox.Timeout)
 		defer cancel()
 
 		vms, err := proxmox.ListVMs(ctx, &proxmox.ListOptions{

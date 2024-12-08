@@ -10,6 +10,7 @@ import (
 	"github.com/sourcegraph/conc/iter"
 	"github.com/spf13/cobra"
 
+	"github.com/romantomjak/labctl/config"
 	"github.com/romantomjak/labctl/proxmox"
 )
 
@@ -17,7 +18,12 @@ var start = &cobra.Command{
 	Use:   "start [flags] [args]",
 	Short: "Start VMs",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		cfg, err := config.FromFile("~/.labctl.hcl")
+		if err != nil {
+			return fmt.Errorf("load configuration: %w", err)
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), cfg.Proxmox.Timeout)
 		defer cancel()
 
 		opts := &proxmox.ListOptions{
