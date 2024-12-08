@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/romantomjak/labctl/cmd/k8s"
 	"github.com/romantomjak/labctl/cmd/pve"
 )
 
@@ -15,6 +16,7 @@ func Execute() {
 	}
 
 	cmd.AddCommand(pve.Command())
+	cmd.AddCommand(k8s.Command())
 
 	if err := cmd.Execute(); err != nil {
 		os.Exit(1)
