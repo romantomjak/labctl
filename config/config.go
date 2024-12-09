@@ -15,7 +15,15 @@ type Config struct {
 }
 
 type Kubernetes struct {
+	SSH       KubernetesSSH       `hcl:"ssh,block"`
 	Dashboard KubernetesDashboard `hcl:"dashboard,block"`
+}
+
+type KubernetesSSH struct {
+	Username       string `hcl:"username"`
+	Addr           string `hcl:"addr"`
+	PrivateKeyFile string `hcl:"private_key_file"`
+	HostKey        string `hcl:"host_key"`
 }
 
 type KubernetesDashboard struct {

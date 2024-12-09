@@ -4,6 +4,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	flagCompressBackup bool
+)
+
 func Command() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "k8s",
@@ -11,6 +15,9 @@ func Command() *cobra.Command {
 	}
 
 	cmd.AddCommand(dashboard)
+
+	backup.Flags().BoolVar(&flagCompressBackup, "compress", false, "compress backup with zstd")
+	cmd.AddCommand(backup)
 
 	return cmd
 }
