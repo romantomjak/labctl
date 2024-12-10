@@ -5,8 +5,8 @@ kubernetes {
         url = "http://dashboard.example.com"
     }
     node "k8s-control-1" {
-        username = "debian"
         addr = "10.10.0.10:22"
+        username = "debian"
         private_key_file = "~/.ssh/id_ed25519"
         host_key = "ssh-ed25519 AA...Jvqs="
     }
@@ -16,14 +16,14 @@ proxmox {
     timeout = "10s"
 
     node "pve1" {
+        addr = "10.10.0.10:8006"
         username = "root"
         password = "my secret password"
-        addr = "10.10.0.10:8006"
     }
 
     node "pve2" {
+        addr = "10.10.0.20:8006"
         username = "debian"
         password = "change me"
-        addr = "10.10.0.20:8006"
     }
 }

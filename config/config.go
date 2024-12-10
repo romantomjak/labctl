@@ -16,15 +16,22 @@ type Config struct {
 
 type Kubernetes struct {
 	Dashboard KubernetesDashboard `hcl:"dashboard,block"`
-	Node      KubernetesNode      `hcl:"node,block"`
+	Node      Node                `hcl:"node,block"`
 }
 
-type KubernetesNode struct {
-	Name           string `hcl:"name,label"`
-	Username       string `hcl:"username"`
-	Addr           string `hcl:"addr"`
-	PrivateKeyFile string `hcl:"private_key_file"`
-	HostKey        string `hcl:"host_key"`
+type Node struct {
+	Name     string `hcl:"name,label"`
+	Addr     string `hcl:"addr"`
+	Username string `hcl:"username"`
+
+	// Password is required if private key is not set.
+	Password string `hcl:"password,optional"`
+
+	// PrivateKeyFile is required if password is not set.
+	PrivateKeyFile string `hcl:"private_key_file,optional"`
+
+	// HostKey is required if password is not set.
+	HostKey string `hcl:"host_key,optional"`
 }
 
 type KubernetesDashboard struct {
@@ -36,14 +43,7 @@ type KubernetesDashboard struct {
 type Proxmox struct {
 	TimeoutRaw string `hcl:"timeout"`
 	Timeout    time.Duration
-	Nodes      []ProxmoxNode `hcl:"node,block"`
-}
-
-type ProxmoxNode struct {
-	Name     string `hcl:"name,label"`
-	Username string `hcl:"username"`
-	Password string `hcl:"password"`
-	Addr     string `hcl:"addr"`
+	Nodes      []Node `hcl:"node,block"`
 }
 
 func FromFile(filename string) (*Config, error) {
