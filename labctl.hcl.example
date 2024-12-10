@@ -4,7 +4,7 @@ kubernetes {
         user = "admin-user"
         url = "http://dashboard.example.com"
     }
-    ssh {
+    node "k8s-control-1" {
         username = "debian"
         addr = "10.10.0.10:22"
         private_key_file = "~/.ssh/id_ed25519"
