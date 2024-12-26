@@ -14,13 +14,13 @@ import (
 )
 
 type Client struct {
-	cfg *config.Config
-	ssh *ssh.Client
-	buf *bytes.Buffer
+	node config.Node
+	ssh  *ssh.Client
+	buf  *bytes.Buffer
 }
 
-func New(cfg *config.Config) (*Client, error) {
-	privateKeyFile, err := expandTilde(cfg.Kubernetes.Node.PrivateKeyFile)
+func New(node config.Node) (*Client, error) {
+	privateKeyFile, err := expandTilde(node.PrivateKeyFile)
 	if err != nil {
 		return nil, err
 	}
@@ -35,25 +35,25 @@ func New(cfg *config.Config) (*Client, error) {
 		return nil, fmt.Errorf("parse private key: %w", err)
 	}
 
-	hostKey, _, _, _, err := ssh.ParseAuthorizedKey([]byte(cfg.Kubernetes.Node.HostKey))
+	hostKey, _, _, _, err := ssh.ParseAuthorizedKey([]byte(node.HostKey))
 	if err != nil {
 		return nil, fmt.Errorf("parse host key: %w", err)
 	}
 
 	config := &ssh.ClientConfig{
-		User: cfg.Kubernetes.Node.Username,
+		User: node.Username,
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeys(key),
 		},
 		HostKeyCallback: ssh.FixedHostKey(hostKey),
 	}
 
-	client, err := ssh.Dial("tcp", cfg.Kubernetes.Node.Addr, config)
+	client, err := ssh.Dial("tcp", node.Addr, config)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Client{cfg, client, &bytes.Buffer{}}, nil
+	return &Client{node, client, &bytes.Buffer{}}, nil
 }
 
 func (c *Client) SnapshotETCD(filename string) error {
@@ -64,7 +64,7 @@ func (c *Client) SnapshotETCD(filename string) error {
 	}
 
 	// Update file permissions to allow scp'ing the snapshot back to local machine.
-	cmd = fmt.Sprintf("sudo chown %s:%s %s", c.cfg.Kubernetes.Node.Username, c.cfg.Kubernetes.Node.Username, filename)
+	cmd = fmt.Sprintf("sudo chown %s:%s %s", c.node.Username, c.node.Username, filename)
 	if _, err := c.run(cmd); err != nil {
 		return fmt.Errorf("chown: %w", err)
 	}
