@@ -36,6 +36,9 @@ type Node struct {
 	PrivateKeyFile string `hcl:"private_key_file,optional"`
 
 	// HostKey is required if password is not set.
+	//
+	// A supported ECDH256 hash can be obtained using:
+	//   ssh-keyscan <host>
 	HostKey string `hcl:"host_key,optional"`
 }
 
