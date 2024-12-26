@@ -12,6 +12,11 @@ import (
 type Config struct {
 	Kubernetes Kubernetes `hcl:"kubernetes,block"`
 	Proxmox    Proxmox    `hcl:"proxmox,block"`
+	Ceph       Ceph       `hcl:"ceph,block"`
+}
+
+type Ceph struct {
+	Nodes []Node `hcl:"node,block"`
 }
 
 type Kubernetes struct {

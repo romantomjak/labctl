@@ -27,3 +27,26 @@ proxmox {
         password = "change me"
     }
 }
+
+ceph {
+    node "ceph1" {
+        addr = "10.10.0.10:22"
+        username = "root"
+        private_key_file = "~/.ssh/id_ed25519"
+        host_key = "ssh-ed25519 AA...Jvqs="
+    }
+
+    node "ceph2" {
+        addr = "10.10.0.20:22"
+        username = "root"
+        private_key_file = "~/.ssh/id_ed25519"
+        host_key = "ssh-ed25519 AA...Jvqs="
+    }
+
+    node "ceph3" {
+        addr = "10.10.0.30:22"
+        username = "root"
+        private_key_file = "~/.ssh/id_ed25519"
+        host_key = "ssh-ed25519 AA...Jvqs="
+    }
+}
