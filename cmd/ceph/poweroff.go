@@ -38,6 +38,8 @@ func poweroffCommandFunc(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("load configuration: %w", err)
 	}
 
+	fmt.Println("🔒 Connecting to cluster")
+
 	// Select a random ceph node for performing operations on the cluster.
 	idx := rand.Intn(len(cfg.Ceph.Nodes))
 	node := cfg.Ceph.Nodes[idx]
