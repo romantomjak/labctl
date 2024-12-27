@@ -47,7 +47,7 @@ func bootCommandFunc(cmd *cobra.Command, args []string) error {
 	}
 	defer sshClient.Close()
 
-	fmt.Println("⏳ Waiting 1m for all services to start")
+	fmt.Println("⏳ Waiting for all services to start")
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
 
@@ -89,7 +89,7 @@ LOOP:
 
 	// TODO: Bring the CephFS cluster back up
 
-	fmt.Println("⛑️  Waiting 15s for cluster to become healthy")
+	fmt.Println("⛑️  Waiting for cluster to become healthy")
 	ctx, cancel = context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
