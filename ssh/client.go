@@ -2,16 +2,21 @@ package ssh
 
 import (
 	"bytes"
+	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
 
 	"github.com/romantomjak/labctl/config"
 )
+
+const DaemonStatusStopped = 0
 
 type Client struct {
 	node config.Node
@@ -120,6 +125,169 @@ func (c *Client) SHA512Sum(filename string) (string, error) {
 func (c *Client) Delete(filename string) error {
 	if _, err := c.run("rm " + filename); err != nil {
 		return fmt.Errorf("remove snapshot: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) CephHealth() (string, error) {
+	out, err := c.run("sudo ceph health")
+	if err != nil {
+		return "", fmt.Errorf("ceph health: %w", err)
+	}
+	return strings.TrimSpace(out), nil
+}
+
+func (c *Client) SetOSDFlag(flag string) error {
+	// For some reason, the output is written to stderr, so
+	// we must redirect stderr to stdout ¯\_(ツ)_/¯
+	out, err := c.run("sudo ceph osd set " + flag + " 2>&1")
+	if err != nil {
+		return fmt.Errorf("ceph osd set: %w", err)
+	}
+
+	// We could run another command to check the key was set, but
+	// instead we'll check if the command returned expected output.
+	out = strings.TrimSpace(out)
+
+	sentinel := flag + " is set"
+	if flag == "pause" {
+		// Weirdly, setting this flag actually sets two flags - one to
+		// pause reads and one to pause writes!
+		sentinel = "pauserd,pausewr is set"
+	}
+
+	if out != sentinel {
+		return fmt.Errorf("ceph osd set: %v", out)
+	}
+
+	return nil
+}
+
+func (c *Client) StopCephService(name string) error {
+	if _, err := c.run("sudo ceph orch stop " + name); err != nil {
+		return fmt.Errorf("ceph orch stop: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			daemons, err := c.CephStatusByServiceName(name)
+			if err != nil {
+				return fmt.Errorf("daemon status: %w", err)
+			}
+
+			allStopped := true
+			for _, daemon := range daemons {
+				if daemon.Status != DaemonStatusStopped {
+					allStopped = false
+				}
+			}
+
+			if allStopped {
+				return nil
+			}
+		case <-ctx.Done():
+			return fmt.Errorf("ceph orch stop: %w", ctx.Err())
+		}
+	}
+}
+
+func (c *Client) CephStatusByServiceName(name string) ([]CephDaemon, error) {
+	return c.cephOrchPs("--service_name " + name)
+}
+
+type CephDaemon struct {
+	Type   string `json:"daemon_type"`
+	Host   string `json:"hostname"`
+	Status int    `json:"status"`
+	ID     string `json:"daemon_id"`
+}
+
+func (c *Client) cephOrchPs(filter string) ([]CephDaemon, error) {
+	out, err := c.run("sudo ceph orch ps -f json " + filter)
+	if err != nil {
+		return nil, fmt.Errorf("ceph orch ps: %w", err)
+	}
+
+	var daemons []CephDaemon
+	if err := json.Unmarshal([]byte(out), &daemons); err != nil {
+		return nil, fmt.Errorf("json: %w", err)
+	}
+
+	return daemons, nil
+}
+
+func (c *Client) CephStatusByDaemonType(daemonType string) ([]CephDaemon, error) {
+	return c.cephOrchPs("--daemon_type " + daemonType)
+}
+
+func (c *Client) StopCephDaemon(name string) error {
+	if _, err := c.run("sudo ceph orch daemon stop " + name); err != nil {
+		return fmt.Errorf("ceph orch daemon stop: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			daemons, err := c.CephStatusByDaemonName(name)
+			if err != nil {
+				return fmt.Errorf("daemon status: %w", err)
+			}
+
+			allStopped := true
+			for _, daemon := range daemons {
+				if daemon.Status != DaemonStatusStopped {
+					allStopped = false
+				}
+			}
+
+			if allStopped {
+				return nil
+			}
+		case <-ctx.Done():
+			return fmt.Errorf("ceph orch daemon stop: %w", ctx.Err())
+		}
+	}
+}
+
+func (c *Client) CephStatusByDaemonName(name string) ([]CephDaemon, error) {
+	parts := strings.SplitN(name, ".", 2)
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("%q is not a valid daemon name", name)
+	}
+	return c.cephOrchPs("--daemon_type " + parts[0] + " --daemon_id " + parts[1])
+}
+
+func (c *Client) CephFSID() (string, error) {
+	out, err := c.run("sudo ceph fsid")
+	if err != nil {
+		return "", fmt.Errorf("ceph fsid: %w", err)
+	}
+	return strings.TrimSpace(out), nil
+}
+
+func (c *Client) StopSystemdService(name string) error {
+	if _, err := c.run("sudo systemctl stop " + name); err != nil {
+		return fmt.Errorf("systemctl stop: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) Shutdown() error {
+	if _, err := c.run("sudo shutdown"); err != nil {
+		return fmt.Errorf("shutdown: %w", err)
 	}
 	return nil
 }
