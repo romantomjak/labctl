@@ -3,7 +3,7 @@ package ceph
 import (
 	"context"
 	"fmt"
-	"math/rand"
+	"net"
 	"strings"
 	"time"
 
@@ -41,11 +41,23 @@ func bootCommandFunc(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Select a random ceph node for performing operations on the cluster.
-	randomInt := rand.Intn(len(cfg.Ceph.Nodes))
-	randomNode := cfg.Ceph.Nodes[randomInt]
+	fmt.Println("⏳ Waiting for ssh to become available")
+	var node config.Node
+SSHLOOP:
+	for {
+		select {
+		case <-time.Tick(time.Second):
+			if n, ok := firstAvailable(cfg.Ceph.Nodes); ok {
+				fmt.Println(BrightBlack + " ↳ Node " + n.Name + " is first available" + Reset)
+				node = n
+				break SSHLOOP
+			}
+		case <-time.After(time.Minute):
+			return fmt.Errorf("timed out waiting for ssh")
+		}
+	}
 
-	sshClient, err := ssh.New(randomNode)
+	sshClient, err := ssh.New(node)
 	if err != nil {
 		return fmt.Errorf("ssh: %w", err)
 	}
@@ -122,4 +134,29 @@ LOOP2:
 	fmt.Println("✅ All done!")
 
 	return nil
+}
+
+func firstAvailable(nodes []config.Node) (config.Node, bool) {
+	timeout := 300 * time.Millisecond
+
+	c := make(chan config.Node)
+	checkSSH := func(node config.Node) {
+		conn, err := net.DialTimeout("tcp", node.Addr, timeout)
+		if err != nil {
+			return
+		}
+		c <- node
+		conn.Close()
+	}
+
+	for _, node := range nodes {
+		go checkSSH(node)
+	}
+
+	select {
+	case n := <-c:
+		return n, true
+	case <-time.After(300 * time.Millisecond):
+		return config.Node{}, false
+	}
 }
