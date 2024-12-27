@@ -1,7 +1,6 @@
 package ceph
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"strings"
@@ -107,17 +106,11 @@ SERVICELOOP:
 
 	// TODO: Bring the CephFS cluster back up
 
-	fmt.Println("⛑️  Waiting for cluster to become healthy")
-	ctx, cancel = context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
-	ticker = time.NewTicker(1 * time.Second)
-	defer ticker.Stop()
-
-LOOP2:
+	fmt.Println("⏳ Waiting for cluster to become healthy")
+HEALTHLOOP:
 	for {
 		select {
-		case <-ticker.C:
+		case <-time.Tick(time.Second):
 			health, err := sshClient.CephHealth()
 			if err != nil {
 				return fmt.Errorf("ceph health: %w", err)
@@ -125,11 +118,10 @@ LOOP2:
 
 			if health == CephStatusHealthy {
 				fmt.Println(BrightBlack + " ↳ Cluster is healthy" + Reset)
-				break LOOP2
+				break HEALTHLOOP
 			}
-		case <-ctx.Done():
-			fmt.Println(BrightBlack + " ↳ Cluster is not healthy" + Reset)
-			break LOOP2
+		case <-time.After(time.Minute):
+			return fmt.Errorf("cluster is not healthy")
 		}
 	}
 
