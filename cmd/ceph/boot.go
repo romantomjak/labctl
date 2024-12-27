@@ -83,7 +83,7 @@ LOOP:
 	for _, flag := range flags {
 		fmt.Println(BrightBlack + " ↳ " + flag + Reset)
 		if err := sshClient.UnsetOSDFlag(flag); err != nil {
-			return fmt.Errorf("set flag: %w", err)
+			return fmt.Errorf("unset flag: %w", err)
 		}
 	}
 

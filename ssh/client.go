@@ -171,7 +171,7 @@ func (c *Client) UnsetOSDFlag(flag string) error {
 		return fmt.Errorf("ceph osd unset: %w", err)
 	}
 
-	// We could run another command to check the key was set, but
+	// We could run another command to check the key was unset, but
 	// instead we'll check if the command returned expected output.
 	out = strings.TrimSpace(out)
 
