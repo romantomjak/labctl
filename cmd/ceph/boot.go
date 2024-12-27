@@ -22,6 +22,7 @@ var boot = &cobra.Command{
 	Use:          "boot [flags]",
 	Short:        "Start ceph nodes",
 	Example:      bootExample,
+	Args:         cobra.NoArgs,
 	SilenceUsage: true,
 	RunE:         bootCommandFunc,
 }
