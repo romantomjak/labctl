@@ -19,13 +19,13 @@ const (
 )
 
 var poweroffExample = strings.Trim(`
-  # Shutdown the whole cluster
+  # Shutdown ceph cluster
   labctl ceph poweroff
 `, "\n")
 
 var poweroff = &cobra.Command{
 	Use:          "poweroff [flags]",
-	Short:        "Shut down ceph nodes",
+	Short:        "Shut down ceph cluster",
 	Example:      poweroffExample,
 	Args:         cobra.NoArgs,
 	SilenceUsage: true,
@@ -49,7 +49,6 @@ func poweroffCommandFunc(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("ssh: %w", err)
 	}
 	defer sshClient.Close()
-
 
 	fmt.Println("⛑️  Checking cluster health")
 	health, err := sshClient.CephHealth()

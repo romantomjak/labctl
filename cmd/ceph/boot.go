@@ -14,13 +14,13 @@ import (
 )
 
 var bootExample = strings.Trim(`
-  # Boot the whole cluster
+  # Start ceph cluster
   labctl ceph boot
 `, "\n")
 
 var boot = &cobra.Command{
 	Use:          "boot [flags]",
-	Short:        "Start ceph nodes",
+	Short:        "Start ceph cluster",
 	Example:      bootExample,
 	Args:         cobra.NoArgs,
 	SilenceUsage: true,
