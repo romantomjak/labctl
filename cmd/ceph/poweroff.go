@@ -57,8 +57,7 @@ func poweroffCommandFunc(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("ceph health: %w", err)
 	}
 	if health != CephStatusHealthy {
-		fmt.Println(BrightBlack + " ↳ Cluster is not healthy, aborting" + Reset)
-		return nil
+		return fmt.Errorf("cluster is not healthy")
 	}
 	fmt.Println(BrightBlack + " ↳ Cluster is healthy" + Reset)
 
