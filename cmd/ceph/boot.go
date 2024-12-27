@@ -63,17 +63,12 @@ SSHLOOP:
 	}
 	defer sshClient.Close()
 
-	fmt.Println("⏳ Waiting for all services to start")
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
-	defer cancel()
-
-	ticker := time.NewTicker(1 * time.Second)
-	defer ticker.Stop()
-
-LOOP:
+	fmt.Println("⏳ Waiting for cluster services to start")
+	seenServices := make(map[string]struct{})
+SERVICELOOP:
 	for {
 		select {
-		case <-ticker.C:
+		case <-time.Tick(time.Second):
 			services, err := sshClient.ListCephServices()
 			if err != nil {
 				return fmt.Errorf("list services: %w", err)
@@ -83,14 +78,21 @@ LOOP:
 			for _, service := range services {
 				if service.Status.Running != service.Status.Size {
 					allRunning = false
+					continue
+				}
+
+				_, seen := seenServices[service.Name]
+				if !seen {
+					fmt.Println(BrightBlack + " ↳ " + service.Name + Reset)
+					seenServices[service.Name] = struct{}{}
 				}
 			}
 
 			if allRunning {
-				break LOOP
+				break SERVICELOOP
 			}
-		case <-ctx.Done():
-			return fmt.Errorf("list services: %w", ctx.Err())
+		case <-time.After(time.Minute):
+			return fmt.Errorf("timed out waiting for services")
 		}
 	}
 
