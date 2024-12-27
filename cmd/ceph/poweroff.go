@@ -107,10 +107,11 @@ func poweroffCommandFunc(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("daemon status: %w", err)
 	}
+
 	for _, daemon := range daemons {
 		for _, node := range cfg.Ceph.Nodes {
 			if !strings.EqualFold(daemon.Host, node.Name) {
-				continue
+				continue // skip nodes where mons are not present
 			}
 
 			name := daemon.Type + "." + daemon.ID
@@ -118,7 +119,7 @@ func poweroffCommandFunc(cmd *cobra.Command, args []string) error {
 			fmt.Println(BrightBlack + " ↳ " + name + Reset)
 
 			// Monitors can't be stopped using ceph orchestrator, so we must
-			// ssh into the nodes and stop them using systemd services.
+			// ssh into the nodes and stop them using systemd service.
 			nodeSSHClient, err := ssh.New(node)
 			if err != nil {
 				return fmt.Errorf("ssh: %w", err)
@@ -131,10 +132,8 @@ func poweroffCommandFunc(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Println("⚡️ Scheduling power off in 1 minute")
+	fmt.Println("⚡️ Scheduling power off")
 	for _, node := range cfg.Ceph.Nodes {
-		fmt.Println(BrightBlack + " ↳ " + node.Name + Reset)
-
 		nodeSSHClient, err := ssh.New(node)
 		if err != nil {
 			return fmt.Errorf("ssh: %w", err)
