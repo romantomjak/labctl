@@ -163,6 +163,32 @@ func (c *Client) SetOSDFlag(flag string) error {
 	return nil
 }
 
+func (c *Client) UnsetOSDFlag(flag string) error {
+	// For some reason, the output is written to stderr, so
+	// we must redirect stderr to stdout ¯\_(ツ)_/¯
+	out, err := c.run("sudo ceph osd unset " + flag + " 2>&1")
+	if err != nil {
+		return fmt.Errorf("ceph osd unset: %w", err)
+	}
+
+	// We could run another command to check the key was set, but
+	// instead we'll check if the command returned expected output.
+	out = strings.TrimSpace(out)
+
+	sentinel := flag + " is unset"
+	if flag == "pause" {
+		// Weirdly, unseting this flag actually unsets two flags - one that
+		// pauses reads and one that pauses writes!
+		sentinel = "pauserd,pausewr is unset"
+	}
+
+	if out != sentinel {
+		return fmt.Errorf("ceph osd unset: %v", out)
+	}
+
+	return nil
+}
+
 func (c *Client) StopCephService(name string) error {
 	if _, err := c.run("sudo ceph orch stop " + name); err != nil {
 		return fmt.Errorf("ceph orch stop: %w", err)
@@ -276,6 +302,28 @@ func (c *Client) CephFSID() (string, error) {
 		return "", fmt.Errorf("ceph fsid: %w", err)
 	}
 	return strings.TrimSpace(out), nil
+}
+
+type CephService struct {
+	Name   string `json:"service_name"`
+	Status struct {
+		Running int `json:"running"`
+		Size    int `json:"size"`
+	} `json:"status"`
+}
+
+func (c *Client) ListCephServices() ([]CephService, error) {
+	out, err := c.run("sudo ceph orch ls -f json")
+	if err != nil {
+		return nil, fmt.Errorf("ceph orch ls: %w", err)
+	}
+
+	var services []CephService
+	if err := json.Unmarshal([]byte(out), &services); err != nil {
+		return nil, fmt.Errorf("json: %w", err)
+	}
+
+	return services, nil
 }
 
 func (c *Client) StopSystemdService(name string) error {
