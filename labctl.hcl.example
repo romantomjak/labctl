@@ -34,6 +34,7 @@ ceph {
         username = "root"
         private_key_file = "~/.ssh/id_ed25519"
         host_key = "ssh-ed25519 AA...Jvqs="
+        mac = "01:23:45:67:89:ab"
     }
 
     node "ceph2" {
@@ -41,6 +42,7 @@ ceph {
         username = "root"
         private_key_file = "~/.ssh/id_ed25519"
         host_key = "ssh-ed25519 AA...Jvqs="
+        mac = "01:23:45:67:89:cd"
     }
 
     node "ceph3" {
@@ -48,5 +50,6 @@ ceph {
         username = "root"
         private_key_file = "~/.ssh/id_ed25519"
         host_key = "ssh-ed25519 AA...Jvqs="
+        mac = "01:23:45:67:89:ef"
     }
 }

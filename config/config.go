@@ -40,6 +40,10 @@ type Node struct {
 	// A supported ECDH256 hash can be obtained using:
 	//   ssh-keyscan <host>
 	HostKey string `hcl:"host_key,optional"`
+
+	// MAC address is optional. This is used to boot nodes
+	// using Wake-on-Lan (WOL) magic packets.
+	MAC string `hcl:"mac,optional"`
 }
 
 type KubernetesDashboard struct {
