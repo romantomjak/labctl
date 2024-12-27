@@ -48,11 +48,6 @@ func poweroffCommandFunc(cmd *cobra.Command, args []string) error {
 	}
 	defer sshClient.Close()
 
-	fsid, err := sshClient.CephFSID()
-	if err != nil {
-		return fmt.Errorf("fsid: %w", err)
-	}
-	fmt.Println("👉 Connected to " + fsid)
 
 	fmt.Println("⛑️  Checking cluster health")
 	health, err := sshClient.CephHealth()
@@ -101,6 +96,12 @@ func poweroffCommandFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Println("👀 Stopping monitors")
+
+	fsid, err := sshClient.CephFSID()
+	if err != nil {
+		return fmt.Errorf("fsid: %w", err)
+	}
+
 	daemons, err = sshClient.CephStatusByDaemonType("mon")
 	if err != nil {
 		return fmt.Errorf("daemon status: %w", err)
