@@ -8,6 +8,7 @@ func Command() *cobra.Command {
 		Short: "Interact with ceph cluster",
 	}
 
+	cmd.AddCommand(boot)
 	cmd.AddCommand(poweroff)
 
 	return cmd
