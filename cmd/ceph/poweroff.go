@@ -68,10 +68,10 @@ func poweroffCommandFunc(cmd *cobra.Command, args []string) error {
 	fmt.Println("🚩 Setting cluster-wide OSD flags")
 	flags := []string{"noout", "nodown", "nobackfill", "norecover", "norebalance", "pause"}
 	for _, flag := range flags {
+		fmt.Println(BrightBlack + " ↳ " + flag + Reset)
 		if err := sshClient.SetOSDFlag(flag); err != nil {
 			return fmt.Errorf("set flag: %w", err)
 		}
-		fmt.Println(BrightBlack + " ↳ " + flag + Reset)
 	}
 
 	// TODO: Bring down CephFS cluster
@@ -93,11 +93,11 @@ func poweroffCommandFunc(cmd *cobra.Command, args []string) error {
 	for _, daemon := range daemons {
 		name := daemon.Type + "." + daemon.ID
 
+		fmt.Println(BrightBlack + " ↳ " + name + Reset)
+
 		if err := sshClient.StopCephDaemon(name); err != nil {
 			return fmt.Errorf("stop daemon: %w", err)
 		}
-
-		fmt.Println(BrightBlack + " ↳ " + name + Reset)
 	}
 
 	fmt.Println("👀 Stopping monitors")
@@ -107,30 +107,32 @@ func poweroffCommandFunc(cmd *cobra.Command, args []string) error {
 	}
 	for _, daemon := range daemons {
 		for _, node := range cfg.Ceph.Nodes {
-			// Monitors can't be stopped using ceph orchestrator, so we must
-			// ssh into the nodes and stop them using systemd services.
 			if !strings.EqualFold(daemon.Host, node.Name) {
 				continue
 			}
 
+			name := daemon.Type + "." + daemon.ID
+
+			fmt.Println(BrightBlack + " ↳ " + name + Reset)
+
+			// Monitors can't be stopped using ceph orchestrator, so we must
+			// ssh into the nodes and stop them using systemd services.
 			nodeSSHClient, err := ssh.New(node)
 			if err != nil {
 				return fmt.Errorf("ssh: %w", err)
 			}
 			defer nodeSSHClient.Close()
 
-			name := daemon.Type + "." + daemon.ID
-
 			if err := nodeSSHClient.StopSystemdService(fmt.Sprintf("ceph-%s@%s", fsid, name)); err != nil {
 				return fmt.Errorf("stop service: %w", err)
 			}
-
-			fmt.Println(BrightBlack + " ↳ " + name + Reset)
 		}
 	}
 
 	fmt.Println("⚡️ Scheduling power off in 1 minute")
 	for _, node := range cfg.Ceph.Nodes {
+		fmt.Println(BrightBlack + " ↳ " + node.Name + Reset)
+
 		nodeSSHClient, err := ssh.New(node)
 		if err != nil {
 			return fmt.Errorf("ssh: %w", err)
@@ -140,8 +142,6 @@ func poweroffCommandFunc(cmd *cobra.Command, args []string) error {
 		if err := nodeSSHClient.Shutdown(); err != nil {
 			return fmt.Errorf("shutdown: %w", err)
 		}
-
-		fmt.Println(BrightBlack + " ↳ " + node.Name + Reset)
 	}
 
 	fmt.Println("✅ All done!")
