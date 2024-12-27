@@ -39,10 +39,10 @@ func poweroffCommandFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	// Select a random ceph node for performing operations on the cluster.
-	randomInt := rand.Intn(len(cfg.Ceph.Nodes))
-	randomNode := cfg.Ceph.Nodes[randomInt]
+	idx := rand.Intn(len(cfg.Ceph.Nodes))
+	node := cfg.Ceph.Nodes[idx]
 
-	sshClient, err := ssh.New(randomNode)
+	sshClient, err := ssh.New(node)
 	if err != nil {
 		return fmt.Errorf("ssh: %w", err)
 	}
