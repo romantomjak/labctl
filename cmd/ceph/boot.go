@@ -11,6 +11,7 @@ import (
 
 	"github.com/romantomjak/labctl/config"
 	"github.com/romantomjak/labctl/ssh"
+	"github.com/romantomjak/labctl/wakeonlan"
 )
 
 var bootExample = strings.Trim(`
@@ -33,9 +34,12 @@ func bootCommandFunc(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("load configuration: %w", err)
 	}
 
-	fmt.Println("⚡️ Booting hosts")
-	// TODO: Power ON all Ceph hosts via WoL
-	// TODO: Wait for ssh to be available
+	fmt.Println("📡 Broadcasting Wake-on-LAN packets")
+	for _, node := range cfg.Ceph.Nodes {
+		if err := wakeonlan.Broadcast(node.MAC); err != nil {
+			return fmt.Errorf("wake on lan: %w", err)
+		}
+	}
 
 	// Select a random ceph node for performing operations on the cluster.
 	randomInt := rand.Intn(len(cfg.Ceph.Nodes))
