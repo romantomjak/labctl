@@ -75,6 +75,8 @@ func backupCommandFunc(cmd *cobra.Command, args []string) error {
 		}
 	}
 
+	fmt.Println("🔒 Connecting to k8s")
+
 	sshClient, err := ssh.New(cfg.Kubernetes.Node)
 	if err != nil {
 		return fmt.Errorf("ssh: %w", err)
