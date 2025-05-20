@@ -16,7 +16,9 @@ type Config struct {
 }
 
 type Ceph struct {
-	Nodes []Node `hcl:"node,block"`
+	Release string `hcl:"release"`
+	Cephadm string `hcl:"cephadm"`
+	Nodes   []Node `hcl:"node,block"`
 }
 
 type Kubernetes struct {

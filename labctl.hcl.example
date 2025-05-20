@@ -29,6 +29,9 @@ proxmox {
 }
 
 ceph {
+    release = "19.2.2"
+    cephadm = "/usr/local/bin/cephadm"
+
     node "ceph1" {
         addr = "10.10.0.10:22"
         username = "root"
