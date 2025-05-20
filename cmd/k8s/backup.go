@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"os"
 	"strings"
 	"time"
@@ -55,12 +54,12 @@ func backupCommandFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	// Check if the destination file already exists.
-	_, err = os.Stat(filename)
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+	exists, err := fileExists(filename)
+	if err != nil {
 		return err
 	}
 
-	if err == nil {
+	if exists {
 		answer, err := prompt(fmt.Sprintf("❓ Overwrite %s? (y/n) [n] ", filename))
 		if err != nil {
 			return err
@@ -170,4 +169,15 @@ func sha512sum(filename string) (string, error) {
 	}
 
 	return fmt.Sprintf("%x", hash.Sum(nil)), nil
+}
+
+func fileExists(name string) (bool, error) {
+	_, err := os.Stat(name)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
