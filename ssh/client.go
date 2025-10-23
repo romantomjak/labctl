@@ -356,7 +356,9 @@ func (c *Client) run(cmd string) (string, error) {
 	sess.Stdout = c.buf
 
 	if err := sess.Run(cmd); err != nil {
-		return "", fmt.Errorf("run command: %w", err)
+		// Output can be incomplete or missing, but return everything we have
+		// to allow inspecting output for specific errors or sentinel values.
+		return c.buf.String(), fmt.Errorf("run command: %w", err)
 	}
 
 	return c.buf.String(), nil
