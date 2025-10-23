@@ -17,6 +17,11 @@ Host maintenance commands
   Place hosts into maintenance mode during troubleshooting or OSD maintenance to
   avoid CRUSH algorithm automatically rebalance data across OSDs when an OSD fails
   or is stopped.
+  
+  OSDs are marked out automatically after 900 seconds if no heartbeat packet is
+  received from the OSD. When this happens, other OSDs will begin backfilling to
+  ensure that the required number of copies exists within the cluster. The cluster
+  is in a degraded state while the backfill is running.
 `, "\n")
 
 var maintenance = &cobra.Command{
