@@ -161,6 +161,14 @@ func (c *Client) CephExitMaintenance(hostname string) error {
 	return nil
 }
 
+func (c *Client) CephInMaintenance(hostname string) (bool, error) {
+	out, err := c.run("sudo ceph orch host ls --format json --host_pattern " + hostname)
+	if err != nil {
+		return false, err
+	}
+	return strings.Contains(out, `"status": "maintenance"`), nil
+}
+
 func (c *Client) CephHealth() (string, error) {
 	out, err := c.run("sudo ceph health")
 	if err != nil {

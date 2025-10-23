@@ -1,8 +1,9 @@
 package ceph
 
 import (
+	"bufio"
 	"fmt"
-	"math/rand"
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -19,38 +20,65 @@ const (
 )
 
 var poweroffExample = strings.Trim(`
-  # Shutdown ceph cluster
+  # Power off a specific node
+  labctl ceph poweroff <node>
+
+  # Shutdown the whole cluster
   labctl ceph poweroff
 `, "\n")
 
 var poweroff = &cobra.Command{
-	Use:          "poweroff [flags]",
-	Short:        "Shut down ceph cluster",
+	Use:          "poweroff [flags] [args]",
+	Short:        "Shut down ceph node",
 	Example:      poweroffExample,
-	Args:         cobra.NoArgs,
+	Args:         cobra.RangeArgs(0, 1),
 	SilenceUsage: true,
 	RunE:         poweroffCommandFunc,
 }
 
 func poweroffCommandFunc(cmd *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		return poweroffCluster()
+	}
+	return poweroffNode(args[0])
+}
+
+func poweroffCluster() error {
 	cfg, err := config.FromFile("~/.labctl.hcl")
 	if err != nil {
 		return fmt.Errorf("load configuration: %w", err)
 	}
 
+	// Confirm if the operator really wants to shut down the whole cluster.
+	if !flagAssumeYes {
+		fmt.Fprint(os.Stdout, "❓ Shut down the whole cluster? (y/n) [n] ")
+
+		scanner := bufio.NewScanner(os.Stdin)
+		scanner.Scan()
+
+		if err := scanner.Err(); err != nil {
+			return fmt.Errorf("read input: %w", err)
+		}
+
+		switch strings.ToLower(scanner.Text()) {
+		case "y", "yes":
+			break // continue
+		default:
+			fmt.Println("🙅‍♀️ Not shutting down the cluster")
+			return nil
+		}
+	}
+
 	fmt.Println("🔒 Connecting to cluster")
 
-	// Select a random ceph node for performing operations on the cluster.
-	idx := rand.Intn(len(cfg.Ceph.Nodes))
-	node := cfg.Ceph.Nodes[idx]
-
-	sshClient, err := ssh.New(node)
+	sshClient, err := sshToRandomClusterNode()
 	if err != nil {
 		return fmt.Errorf("ssh: %w", err)
 	}
 	defer sshClient.Close()
 
 	fmt.Println("⛑️  Checking cluster health")
+
 	health, err := sshClient.CephHealth()
 	if err != nil {
 		return fmt.Errorf("ceph health: %w", err)
@@ -76,11 +104,13 @@ func poweroffCommandFunc(cmd *cobra.Command, args []string) error {
 	// TODO: Stop RADOS Gateway services
 
 	fmt.Println("💥 Stopping crash service")
+
 	if err := sshClient.StopCephService("crash"); err != nil {
 		return fmt.Errorf("stop service: %w", err)
 	}
 
 	fmt.Println("🗄️  Stopping OSDs")
+
 	daemons, err := sshClient.CephStatusByDaemonType("osd")
 	if err != nil {
 		return fmt.Errorf("daemon status: %w", err)
@@ -118,7 +148,7 @@ func poweroffCommandFunc(cmd *cobra.Command, args []string) error {
 			fmt.Println(BrightBlack + " ↳ " + name + Reset)
 
 			// Monitors can't be stopped using ceph orchestrator, so we must
-			// ssh into the nodes and stop them using systemd service.
+			// ssh into the nodes and stop them using their systemd service.
 			nodeSSHClient, err := ssh.New(node)
 			if err != nil {
 				return fmt.Errorf("ssh: %w", err)
@@ -132,6 +162,7 @@ func poweroffCommandFunc(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Println("⚡️ Scheduling power off")
+
 	for _, node := range cfg.Ceph.Nodes {
 		nodeSSHClient, err := ssh.New(node)
 		if err != nil {
@@ -147,4 +178,46 @@ func poweroffCommandFunc(cmd *cobra.Command, args []string) error {
 	fmt.Println("✅ All done!")
 
 	return nil
+}
+
+func poweroffNode(hostname string) error {
+	host, err := loadHostConfiguration(hostname)
+	if err != nil {
+		return fmt.Errorf("load configuration: %w", err)
+	}
+
+	fmt.Println("🔒 Connecting to cluster")
+
+	sshClient, err := ssh.New(host)
+	if err != nil {
+		return fmt.Errorf("ssh: %w", err)
+	}
+	defer sshClient.Close()
+
+	fmt.Println("🔍 Checking host maintenance status")
+
+	inMaintenance, err := sshClient.CephInMaintenance(host.Name)
+	if err != nil {
+		return fmt.Errorf("ceph maintenance status: %w", err)
+	}
+
+	if !inMaintenance {
+		return fmt.Errorf("not in maintenance mode")
+	}
+
+	fmt.Println(BrightBlack + " ↳ in maintenance mode" + Reset)
+
+	fmt.Println("⚡️ Scheduling power off")
+
+	if err := sshClient.Shutdown(); err != nil {
+		return fmt.Errorf("shutdown: %w", err)
+	}
+
+	fmt.Println("✅ OK")
+
+	return nil
+}
+
+func sshToRandomClusterNode() (*ssh.Client, error) {
+	return sshToRandomClusterNodeExcept("")
 }

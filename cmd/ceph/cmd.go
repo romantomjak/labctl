@@ -14,6 +14,7 @@ func Command() *cobra.Command {
 
 	cmd.AddCommand(boot)
 
+	poweroff.Flags().BoolVarP(&flagAssumeYes, "assume-yes", "y", false, `assume "yes" as answer to all prompts`)
 	cmd.AddCommand(poweroff)
 
 	maintenance.AddCommand(enterMaintenance)
