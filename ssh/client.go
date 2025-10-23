@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -17,6 +18,11 @@ import (
 )
 
 const DaemonStatusStopped = 0
+
+var (
+	ErrAlreadyInMaintenance = errors.New("already in maintenance")
+	ErrNotInMaintenance     = errors.New("not in maintenance")
+)
 
 type Client struct {
 	node config.Node
@@ -125,6 +131,32 @@ func (c *Client) SHA512Sum(filename string) (string, error) {
 func (c *Client) Delete(filename string) error {
 	if _, err := c.run("rm " + filename); err != nil {
 		return fmt.Errorf("remove snapshot: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) CephEnterMaintenance(hostname string) error {
+	// Redirect stderr to stdout so we can inspect the output and return
+	// a more specialised error if host is already in maintenance mode.
+	out, err := c.run("sudo ceph orch host maintenance enter " + hostname + " 2>&1")
+	if err != nil {
+		if strings.Contains(out, "already in maintenance") {
+			return ErrAlreadyInMaintenance
+		}
+		return err
+	}
+	return nil
+}
+
+func (c *Client) CephExitMaintenance(hostname string) error {
+	// Redirect stderr to stdout so we can inspect the output and return
+	// a more specialised error if host is not in maintenance mode.
+	out, err := c.run("sudo ceph orch host maintenance exit " + hostname + " 2>&1")
+	if err != nil {
+		if strings.Contains(out, "not in maintenance mode") {
+			return ErrNotInMaintenance
+		}
+		return err
 	}
 	return nil
 }
